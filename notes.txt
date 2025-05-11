@@ -1,0 +1,18 @@
+corrections.csv : corrections finales facteurs prédictifs de complications post-opératoires précoces après chirurgie pour rétrécissement aortique (réponses) - Réponses au formulaire 1
+corrections2.xlsx : corrections finales facteurs prédictifs de complications post-opératoires précoces après chirurgie pour rétrécissement aortique (réponses)-2
+facteurs1.csv : facteurs prédictifs de complications post-opératoires précoces après chirurgie pour rétrécissement aortique (réponses) - Réponses au formulaire 1-2
+facteurs2.csv : facteurs prédictifs de complications post-opératoires précoces après chirurgie pour rétrécissement aortique (réponses) - Réponses au formulaire 3
+
+
+1- data augmentation 
+Output : AHD 
+- classification LLM chatbot 
+
+
+
+1- data augmentation 
+Output : AF Complications post-opératoires précoces (< 30 jours)
+- Random forest 
+- Decision tree 
+
+gemini_api_key: AIzaSyD-pyrqtBxbipwtRHMvghCRxOQi49O_3ps
