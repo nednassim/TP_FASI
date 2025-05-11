@@ -75,7 +75,7 @@ joblib.dump(ml_model, 'heart_disease_model.pkl')
 joblib.dump(le, 'label_encoder.pkl')
 
 # Configure Gemini
-genai.configure(api_key='AIzaSyD-pyrqtBxbipwtRHMvghCRxOQi49O_3ps')
+genai.configure(api_key='GEMINI_API_KEY')
 
 # Initialize the model
 model_name = 'gemini-2.0-flash'
