@@ -2,10 +2,15 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report
+from sklearn.preprocessing import LabelEncoder
 import joblib
 import google.generativeai as genai
-import os
 import numpy as np
+from ctgan import CTGAN
+import streamlit as st
+import os
+os.environ["STREAMLIT_WATCHER_TYPE"] = "none"
+
 
 # Load the dataset
 df = pd.read_excel("heart.xlsx", sheet_name="Heart2")
@@ -13,33 +18,7 @@ df = pd.read_excel("heart.xlsx", sheet_name="Heart2")
 # Clean the data - handle missing values if any
 df = df.dropna()
 
-# Domain-Specific Augmentation
-def medical_augmentation(df):
-    augmented = []
-    
-    for _, row in df.iterrows():
-        # Create variations based on clinical relationships
-        for _ in range(2):  # Create 2 augmented samples per original
-            new_row = row.copy()
-            
-            # If patient has high cholesterol, likely higher blood pressure
-            if new_row['Chol'] > 240:
-                new_row['RestBP'] += np.random.randint(5, 15)
-                
-            # If patient has exercise induced angina, likely higher ST depression
-            if new_row['ExAng'] == 1:
-                new_row['Oldpeak'] += np.random.uniform(0.1, 0.5)
-                
-            augmented.append(new_row)
-    
-    return pd.concat([df, pd.DataFrame(augmented)], ignore_index=True)
 
-df = medical_augmentation(df)
-df = df.drop_duplicates()
-
-from sklearn.preprocessing import LabelEncoder
-
-# At the beginning of your script (after loading data)
 all_chest_pain_types = ['typical', 'atypical', 'non-anginal', 'asymptomatic']
 all_thal_types = ['normal', 'fixed defect', 'reversible defect']
 
@@ -52,6 +31,67 @@ df['AHD'] = le.fit_transform(df['AHD'])
 df['ChestPain'] = le.fit_transform(df['ChestPain'])
 df['Thal'] = le.fit_transform(df['Thal'].astype(str))  # Handle NA values
 
+def ctgan_augmentation(df, target_column='AHD', augment_size=None):
+    """
+    Generate synthetic samples using CTGAN.
+    
+    Args:
+        df: Original DataFrame
+        target_column: The target column to condition on
+        augment_size: Number of synthetic samples to generate (default: same as original)
+    
+    Returns:
+        Augmented DataFrame
+    """
+    # Initialize CTGAN model
+    model = CTGAN(epochs=100, verbose=True)
+    print("Training CTGAN model...")
+
+    # Fit the model to the original data
+    model.fit(df)
+    
+    # Generate synthetic samples
+    if augment_size is None:
+        augment_size = len(df)
+    
+    synthetic_data = model.sample(augment_size)
+    
+    return pd.concat([df, synthetic_data], ignore_index=True)
+
+# Domain-Specific Augmentation
+def medical_augmentation(df):
+    augmented = []
+    
+    for _, row in df.iterrows():
+        # Create variations based on clinical relationships
+        for _ in range(2):  # Create 2 augmented samples per original
+            new_row = row.copy()
+            new_row['Age'] += np.random.randint(-15, 16)
+            # If patient has high cholesterol, likely higher blood pressure
+            if new_row['Chol'] > 240:
+                new_row['RestBP'] += np.random.randint(5, 15)
+                
+            # If patient has exercise induced angina, likely higher ST depression
+            if new_row['ExAng'] == 1:
+                new_row['Oldpeak'] += np.random.uniform(0.1, 0.5)
+                
+            new_row['RestBP'] += np.random.randint(-10, 11)
+            new_row['Oldpeak'] += np.random.uniform(-0.5, 0.5)
+            new_row['MaxHR'] += np.random.randint(-10, 11)
+            new_row['AHD'] = np.random.choice([0, 1])  # Randomly assign AHD
+            
+            augmented.append(new_row)
+            
+			# Randomize age within a realistic range
+			
+    return pd.concat([df, pd.DataFrame(augmented)], ignore_index=True)
+
+df = medical_augmentation(df)
+# Apply CTGAN augmentation
+#
+
+df.tail(10)  # Display last 10 rows to verify augmentation
+
 # Select features and target
 features = ['Age', 'Sex', 'ChestPain', 'RestBP', 'Chol', 'Fbs', 'RestECG', 
             'MaxHR', 'ExAng', 'Oldpeak', 'Slope', 'Ca', 'Thal']
@@ -60,10 +100,10 @@ y = df['AHD']
 
 
 # Split data
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=64)
 
 # Train a model
-ml_model = RandomForestClassifier(random_state=42)
+ml_model = RandomForestClassifier(random_state=64)
 ml_model.fit(X_train, y_train)
 
 # Evaluate
@@ -89,9 +129,6 @@ generation_config = {
 
 gemini_model = genai.GenerativeModel(model_name=model_name,
                             generation_config=generation_config)
-
-
-import streamlit as st
 
 # Load the saved model and encoder
 model = joblib.load('heart_disease_model.pkl')
